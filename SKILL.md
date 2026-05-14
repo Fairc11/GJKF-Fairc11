@@ -1,6 +1,6 @@
 ---
 name: GJKF-Fairc11
-description: 用于构建桌面工具类软件（Python FastAPI 后端 + Web 前端或 pywebview 桌面端）。用户说"做一个XX工具"、"帮我开发一个XX"、"做到一半了帮我看看"时触发。适用于：平台内容抓取工具、媒体处理工具、数据管理工具、任何需要 Web UI 或桌面端的 Python 工具。默认技术路线 FastAPI + Playwright + pywebview，根据需求动态推荐其他技术栈。
+description: 用于构建桌面工具类软件（Python FastAPI 后端 + Web 前端或 pywebview 桌面端）。用户说"做一个XX工具"、"帮我开发一个XX"、"做到一半了帮我看看"、"发布新版本"、"上传到GitHub"、"打标签"、"发布Release"、"帮我发版"、"项目结构乱了"、"帮我规范化"、"性能太慢"、"又报错了"、"怎么打包"、"怎么上传"时触发。适用于：平台内容抓取工具、媒体处理工具、数据管理工具、任何需要 Web UI 或桌面端的 Python 工具。默认技术路线 FastAPI + Playwright + pywebview，根据需求动态推荐其他技术栈。
 ---
 
 # GJKF-skill — 工具开发工作流
@@ -31,6 +31,14 @@ description: 用于构建桌面工具类软件（Python FastAPI 后端 + Web 前
 1. 进入"快速开发循环"：开发模式改 → 测试 → 改 → 测试
 2. 全部验证通过后再打包
 3. 避免"改→打包→测试→又改→又打包"的循环
+```
+
+### 场景 D：发布新版本 / 上传到 GitHub
+
+```
+1. 完成阶段 4 打包后，进入"阶段 5：GitHub 发布"
+2. 初始化 git → 配置 .gitignore → commit → tag → push
+3. 创建 GitHub Release + 上传安装包
 ```
 
 ---
@@ -165,6 +173,34 @@ description: 用于构建桌面工具类软件（Python FastAPI 后端 + Web 前
 
 **验收**：打包 EXE 在其他机器能正常运行
 
+### 阶段 5：GitHub 发布
+
+**目标**：把工具发布到 GitHub，创建 Release，用户能下载安装包
+
+**触发场景**："发布新版本"、"上传到GitHub"、"打标签发布"
+
+**步骤**：
+1. 初始化 git（如果还没有仓库）
+2. 配置 `.gitignore`（敏感文件、构建产物、运行时数据都要排除）
+3. `git add -A` → `git commit -m "feat: vX.X.X - 更新说明"`
+4. `git tag vX.X.X`
+5. `git push origin main --tags`
+6. 创建 GitHub Release + 上传安装包
+
+**Commit message 规范**：
+
+| 前缀 | 用途 | 示例 |
+|------|------|------|
+| `feat:` | 新功能 | `feat: v1.3.0 - 新增用户主页抓取` |
+| `fix:` | 修 Bug | `fix: 修复登录按钮不响应` |
+| `docs:` | 文档 | `docs: 更新使用说明` |
+| `chore:` | 杂项 | `chore: 清理敏感文件` |
+| `refactor:` | 重构 | `refactor: 重写抓取逻辑` |
+
+详见 `references/08-github-release.md`
+
+**验收**：GitHub 仓库可见，Release 可下载
+
 ---
 
 ## 2. 快速开发循环
@@ -184,10 +220,12 @@ python run.py 直接跑             双击 EXE 运行
 
 ### 关键规则
 
-1. **开发模式下必须模拟打包后的路径行为** — 用 `setup_check.py` 中的路径判断逻辑，让 dev 和 prod 路径一致
-2. **只有全部功能验证通过才进打包流程**
-3. **打包前跑一遍完整的冒烟测试**：启动 → 登录（如果有）→ 核心功能 → 退出
-4. **生成 `启动.bat`** — 用户双击就能启动 dev 模式，不用敲命令
+1. **路径一致性** — 开发模式下必须模拟打包后的路径行为，用 `sys.frozen` + `sys._MEIPASS` 检测，让 dev 和 prod 路径一致
+2. **阶段门禁** — 每个阶段完成后必须验证再进入下个阶段，不跳过验收
+3. **先复现再修** — 错误必须先能稳定复现，找到根因再修复，不猜原因
+4. **先 profile 再优化** — 性能问题先测出瓶颈（IO vs CPU），再针对优化，不盲目改
+5. **打包前冒烟** — 打包前跑完整冒烟测试：启动 → 核心功能 → 退出，确认正常再打包
+6. **快捷入口** — 生成 `启动.bat`，用户双击就能启动 dev 模式，不用敲命令
 
 ---
 
@@ -272,6 +310,7 @@ class ToolError(Exception):
 | `references/05-tech-stack-guide.md` | 技术栈决策树 | 阶段 -1 技术选型 |
 | `references/06-cn-error-handling.md` | 中文错误处理规范 | 阶段 1 写 API 时 |
 | `references/07-phase-diagnosis.md` | 半路接入诊断 | 项目做到一半接入时 |
+| `references/08-github-release.md` | GitHub 发布流程 | 阶段 5 发布时 |
 
 ## 脚手架模板
 

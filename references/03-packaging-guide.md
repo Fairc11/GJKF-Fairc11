@@ -202,7 +202,132 @@ Name: "{group}\ProjectName"; Filename: "{app}\ProjectName.exe"
 Name: "{commondesktop}\ProjectName"; Filename: "{app}\ProjectName.exe"
 ```
 
-## 六、打包验证清单
+## 七、GitHub 发布流程
+
+打包完成后发布到 GitHub，让用户能下载安装包。
+
+### 1. 初始化 git
+```bash
+git init
+git checkout -b main
+```
+
+### 2. .gitignore 配置
+
+```gitignore
+# 敏感信息
+cookies.yaml
+.env
+*.key
+*.pem
+
+# 运行时数据
+data/
+logs/
+*.log
+
+# 构建产物
+dist/
+build/
+*.spec
+*.exe
+
+# 发布产物（走 GitHub Releases）
+releases/
+
+# 本地备份
+备份_*/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+desktop.ini
+```
+
+> ⚠️ 第一次 add 前确认 `.gitignore` 已配置好，避免把密钥提交上去。
+
+### 3. 提交代码
+
+```bash
+git add -A
+git commit -m "feat: vX.X.X - 更新说明"
+```
+
+**Commit message 规范：**
+
+| 前缀 | 用途 | 示例 |
+|------|------|------|
+| `feat:` | 新功能 | `feat: v1.3.0 - 新增用户主页抓取` |
+| `fix:` | 修 Bug | `fix: 修复登录按钮不响应` |
+| `docs:` | 文档 | `docs: 更新使用说明` |
+| `chore:` | 杂项 | `chore: 清理敏感文件` |
+| `refactor:` | 重构 | `refactor: 重写抓取逻辑` |
+
+### 4. 打标签 + 推送
+
+```bash
+git tag vX.X.X          # 版本号前带 v
+git push origin main --tags
+```
+
+### 5. 创建 Release（网页方式）
+
+打开 `https://github.com/用户名/仓库名/releases/new`：
+1. Tag version: `vX.X.X`
+2. Release title: `vX.X.X`
+3. Description: 写更新说明
+4. Attach binaries: 上传 zip 安装包
+5. 点 Publish release
+
+### 6. 创建 Release（API 方式）
+
+```bash
+set TOKEN=你的_GitHub_Token
+set VERSION=vX.X.X
+set ZIP_PATH=C:\path\to\安装包_vX.X.X.zip
+
+REM 创建 Release
+curl -s -X POST ^
+  -H "Authorization: token %TOKEN%" ^
+  -H "Accept: application/vnd.github.v3+json" ^
+  https://api.github.com/repos/用户名/仓库名/releases ^
+  -d "{\"tag_name\":\"%VERSION%\",\"name\":\"%VERSION%\",\"body\":\"更新说明\"}" > release.json
+
+REM 获取 Release ID
+for /f "tokens=2 delims=:," %%a in ('type release.json ^| findstr /C:"\"id\":"') do set REL_ID=%%a
+
+REM 上传安装包
+curl -s -X POST ^
+  -H "Authorization: token %TOKEN%" ^
+  -H "Content-Type: application/zip" ^
+  "https://uploads.github.com/repos/用户名/仓库名/releases/%REL_ID%/assets?name=项目名_%VERSION%.zip" ^
+  --data-binary @"%ZIP_PATH%"
+```
+
+> 注意：不要把你的 Token 提交到代码里！
+
+### 7. 一条龙示例
+
+```bash
+REM 假设当前版本 v1.3.0
+cd 项目目录
+git add -A
+git commit -m "feat: v1.3.0 - 新增XX功能"
+git tag v1.3.0
+git push origin main --tags
+
+REM 然后到 GitHub 网页创建 Release
+```
+
+## 八、打包验证清单
 
 - [ ] dev 模式下所有功能正常
 - [ ] `build.spec` 的 `hiddenimports` 覆盖所有模块
