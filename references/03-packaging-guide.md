@@ -7,10 +7,12 @@
 ```
 应用程序代码（.py）
     ↓ PyInstaller
-单文件 EXE（包含 Python 解释器 + 所有依赖 + 资源文件）
+onedir/EXE（包含 Python 解释器 + 应用依赖 + 必要资源）
     ↓ Inno Setup（可选）
 安装包（引导安装 + 创建开始菜单 + 桌面快捷方式）
 ```
+
+面向普通用户发布时，优先选择可检查、可打安装包的 onedir 结构，再用 Inno Setup 输出单个安装包 EXE。不要只为了“看起来一个文件”切到 PyInstaller onefile，除非已经验证启动速度、依赖路径和日志收集都没问题。
 
 ## 二、PyInstaller 打包
 
@@ -31,9 +33,11 @@ datas = [
     (str(BACKEND_DIR / "app" / "templates"), "backend/app/templates"),
     (str(BACKEND_DIR / "app" / "static"), "backend/app/static"),
     (str(PROJECT_ROOT / "config.yaml"), "."),
-    (str(PROJECT_ROOT / "cookies.yaml"), "."),
     (str(PROJECT_ROOT / "icon.ico"), "."),
 ]
+
+# 绝不要把 .env、cookies.yaml、token、日志、缓存目录放进 datas。
+# 需要默认配置时，提供 config.example.yaml 或空模板，由首次启动生成用户配置。
 
 # 必须列出所有动态导入的模块！
 hiddenimports = [
@@ -78,8 +82,8 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        "tkinter", "matplotlib", "PIL", "pandas", "numpy",
-        "scipy", "sympy", "notebook", "jupyter",
+        # 只排除已经确认不会被间接导入的依赖。
+        # 不确定时先保留，封包版验证通过后再瘦身。
     ],
     noarchive=False,
 )
@@ -154,7 +158,51 @@ STATIC_DIR = BASE_DIR / "backend" / "app" / "static"
 DATA_DIR = BASE_DIR / "data"
 ```
 
-## 四、常见打包问题
+### 用户数据目录
+
+打包后不要把日志、缓存、数据库、下载临时文件写入安装目录。安装到 `C:\Program Files\ProjectName` 后，普通用户通常没有写权限。
+
+```python
+import os
+from pathlib import Path
+
+def get_user_data_dir(app_name: str = "ProjectName") -> Path:
+    root = os.environ.get("LOCALAPPDATA")
+    if root:
+        base = Path(root) / app_name
+    else:
+        base = Path.home() / f".{app_name.lower()}"
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+USER_DATA_DIR = get_user_data_dir()
+LOG_DIR = USER_DATA_DIR / "logs"
+CACHE_DIR = USER_DATA_DIR / "cache"
+```
+
+## 四、零前置条件打包
+
+普通用户分发版默认目标：安装后无需手动安装 Python、Playwright 浏览器、Chromium、FFmpeg、Node、证书或其他运行时依赖。
+
+### 必须处理
+
+| 依赖 | 推荐策略 | 验收方式 |
+|------|----------|----------|
+| Python 包 | PyInstaller 收集 | 封包版启动 + hiddenimports 检查 |
+| 浏览器/Playwright | 内置浏览器目录，启动时优先查 `_internal` | 清空本机浏览器缓存后扫码/自动化流程可用 |
+| FFmpeg | 内置二进制，或首次启动明确检测并提示 | 媒体合成功能在干净环境通过 |
+| WebView2 | 安装器检测，缺失时中文提示或引导安装 | 新机器可打开桌面窗口 |
+| 证书/模板/静态文件 | 加入 datas | 封包版实际访问页面和 API |
+
+### setup_check 原则
+
+- 自检脚本必须能在开发版和封包版运行。
+- 检测路径同时覆盖开发目录、`sys._MEIPASS`、安装目录和用户数据目录。
+- 缺失依赖时给中文错误，说明用户能做什么。
+- 不要在只缺一个依赖时触发无关的大量安装。
+- 不要依赖开发机 PATH；封包版先找内置二进制。
+
+## 五、常见打包问题
 
 | 问题 | 原因 | 解决 |
 |------|------|------|
@@ -164,6 +212,9 @@ DATA_DIR = BASE_DIR / "data"
 | 功能正常但报错不影响运行 | excludes 误删了依赖 | 不要乱 excludes，只排除确定没用的 |
 | EXE 太大 | 包含了很多不必要的库 | 适量 excludes，或者用 UPX 压缩 |
 | 启动慢 | PyInstaller 解压 | 减少文件数量，合并小文件 |
+| 开发机正常，朋友电脑失败 | 依赖来自开发机缓存 | 做清运行时/干净机测试，内置或检测缺失依赖 |
+| 安装后 Permission denied | 写入安装目录 | 日志、缓存、数据库改写到 `%LOCALAPPDATA%` |
+| GUI 模式无日志 | `sys.stdout is None` 或 console=False | 启动早期写 boot log 到用户日志目录 |
 
 ### 闪退调试技巧
 
@@ -180,7 +231,7 @@ DATA_DIR = BASE_DIR / "data"
 ProjectName.exe > error.log 2>&1
 ```
 
-## 五、Inno Setup 安装包（可选）
+## 六、Inno Setup 安装包（可选）
 
 ```iss
 ; installer.iss
@@ -202,7 +253,19 @@ Name: "{group}\ProjectName"; Filename: "{app}\ProjectName.exe"
 Name: "{commondesktop}\ProjectName"; Filename: "{app}\ProjectName.exe"
 ```
 
-## 七、GitHub 发布流程
+## 七、封包版验收
+
+开发版能跑不代表封包版能发。每次发布至少跑：
+
+1. 开发版测试：单元测试、编译检查、release check 或等价脚本。
+2. onedir 冒烟：双击 `dist\ProjectName\ProjectName.exe`，验证启动、核心功能、退出。
+3. 安装包冒烟：安装到默认目录，验证普通用户权限下能写日志和缓存。
+4. 清运行时冒烟：临时移走本机用户数据、浏览器缓存、FFmpeg 缓存等，确认没有依赖开发机残留。
+5. 干净机测试：Windows Sandbox、虚拟机或另一台机器。
+
+失败时优先收集用户数据目录里的日志，不要只让用户压缩安装目录。
+
+## 八、GitHub 发布流程
 
 打包完成后发布到 GitHub，让用户能下载安装包。
 

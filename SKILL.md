@@ -1,11 +1,11 @@
 ---
 name: GJKF-Fairc11
-description: 用于构建桌面工具类软件（Python FastAPI 后端 + Web 前端或 pywebview 桌面端）。用户说"做一个XX工具"、"帮我开发一个XX"、"做到一半了帮我看看"、"发布新版本"、"上传到GitHub"、"打标签"、"发布Release"、"帮我发版"、"项目结构乱了"、"帮我规范化"、"性能太慢"、"又报错了"、"怎么打包"、"怎么上传"时触发。适用于：平台内容抓取工具、媒体处理工具、数据管理工具、任何需要 Web UI 或桌面端的 Python 工具。默认技术路线 FastAPI + Playwright + pywebview，根据需求动态推荐其他技术栈。
+description: Use when 用户要做桌面工具、Web 工具、平台抓取工具、媒体处理工具或数据管理工具，或提到"做一个XX工具"、"帮我开发"、"做到一半了"、"项目乱了"、"规范化"、"性能太慢"、"又报错了"、"打包"、"零前置条件"、"干净机测试"、"发布新版本"、"上传到GitHub"、"打标签"、"发布Release"、"帮我发版"。
 ---
 
 # GJKF-skill — 工具开发工作流
 
-> 基于实际项目的经验总结：Ptu（抖音图文下载器，v1.1.0） + 微书薯（微博备份工具）
+> 基于实际项目的经验总结：Ptu（抖音图文下载器，已沉淀到零前置条件发布流程） + 微书薯（微博备份工具）
 
 ## 快速使用
 
@@ -36,10 +36,23 @@ description: 用于构建桌面工具类软件（Python FastAPI 后端 + Web 前
 ### 场景 D：发布新版本 / 上传到 GitHub
 
 ```
-1. 完成阶段 4 打包后，进入"阶段 5：GitHub 发布"
-2. 初始化 git → 配置 .gitignore → commit → tag → push
-3. 创建 GitHub Release + 上传安装包
+1. 完成阶段 4 打包后，先进入"阶段 4.5：封包态验收"
+2. 通过开发版测试、封包版冒烟、干净机/清运行时测试
+3. 用户确认可用后，再进入"阶段 5：GitHub 发布"
+4. 做资产审计 → commit → tag → push → 创建 Release + 上传安装包
 ```
+
+---
+
+## 必须先守住的红线
+
+1. **先读项目事实源**：接手已有项目时，先找 README、AGENTS/CLAUDE、技术文档、release checklist、handoff/plan；不要凭记忆判断项目状态。
+2. **零前置条件优先**：面向普通用户分发的桌面工具，默认目标是安装后无需手装 Python、浏览器、FFmpeg、Node、证书或其他运行时依赖；确实无法内置时要写清楚检测、提示和降级路径。
+3. **开发版能跑不等于封包版能发**：`python run.py` 通过后，还必须单独验收 PyInstaller/Inno Setup 产物，覆盖 `sys.frozen`、`sys.stdout is None`、CWD、hiddenimports、datas、权限路径和内置依赖。
+4. **运行时数据不写安装目录**：安装到 `C:\Program Files\...` 后，日志、缓存、Cookie、数据库、下载临时文件必须写到用户可写目录，如 `%LOCALAPPDATA%\项目名`。
+5. **敏感文件绝不进仓库/安装包**：`.env`、`cookies.yaml`、token、日志、运行时目录和本地缓存必须在 git 跟踪、打包 datas、Release 资产三层都排除。
+6. **用户确认前不替换线上资产**：发布前可以准备 tag、草稿和安装包，但正式 GitHub Release/资产替换必须等用户确认封包版或干净机测试通过。
+7. **长期真相来源要同步更新**：版本号、README、AGENTS/CLAUDE、技术文档、release checklist、测试记录和 GitHub Release notes 不应相互矛盾。
 
 ---
 
@@ -71,6 +84,7 @@ description: 用于构建桌面工具类软件（Python FastAPI 后端 + Web 前
 | 阶段 2（前端） | 有 templates/static/，无桌面端 |
 | 阶段 3（桌面端） | 有 desktop_app.py |
 | 阶段 4（打包） | 有 build.spec / PyInstaller 配置 |
+| 阶段 4.5（封包态验收） | 有可运行安装包/onedir，且已做清运行时或干净机测试 |
 
 ### 诊断输出
 
@@ -88,7 +102,7 @@ description: 用于构建桌面工具类软件（Python FastAPI 后端 + Web 前
 
 ---
 
-## 1. 核心开发流程（6+1阶段）
+## 1. 核心开发流程（7+1阶段）
 
 ### 阶段 -1：需求分析
 
@@ -168,10 +182,27 @@ description: 用于构建桌面工具类软件（Python FastAPI 后端 + Web 前
 2. `build.spec` — PyInstaller 配置
 3. `build_exe.bat` — 一键打包
 4. `installer.iss` — Inno Setup 安装包（可选）
+5. 内置或检测必要运行时依赖（浏览器、FFmpeg、WebView2、证书等）
+6. 确认运行时数据、日志和缓存写入用户可写目录
 
 详见 `references/03-packaging-guide.md`
 
 **验收**：打包 EXE 在其他机器能正常运行
+
+### 阶段 4.5：封包态与干净机验收
+
+**目标**：证明用户拿到的安装包真的可用
+
+**步骤**：
+1. 开发版验证：测试、编译检查、release check 或等价脚本全部通过
+2. 封包版冒烟：双击 EXE/安装包，验证启动、核心功能、日志、退出
+3. 清运行时验证：临时移走本机缓存和依赖目录，确认不会依赖开发机残留
+4. 干净机验证：Windows Sandbox、虚拟机或另一台机器安装运行
+5. 失败时收集用户数据目录下的日志，不要只让用户压缩安装目录
+
+详见 `references/09-zero-prereq-release.md`
+
+**验收**：无手动前置安装，核心流程在干净环境通过；用户确认前不发布正式 Release
 
 ### 阶段 5：GitHub 发布
 
@@ -180,12 +211,13 @@ description: 用于构建桌面工具类软件（Python FastAPI 后端 + Web 前
 **触发场景**："发布新版本"、"上传到GitHub"、"打标签发布"
 
 **步骤**：
-1. 初始化 git（如果还没有仓库）
-2. 配置 `.gitignore`（敏感文件、构建产物、运行时数据都要排除）
-3. `git add -A` → `git commit -m "feat: vX.X.X - 更新说明"`
-4. `git tag vX.X.X`
-5. `git push origin main --tags`
-6. 创建 GitHub Release + 上传安装包
+1. 先确认真实 repo root，不要在外层源码目录误跑 tag/release
+2. 做发布资产审计：必须上传、绝不上传、可选上传
+3. 配置 `.gitignore`（敏感文件、运行时数据、构建缓存要排除；可复现构建配置通常要保留）
+4. `git add -A` → `git commit -m "feat: vX.X.X - 更新说明"`
+5. `git tag vX.X.X`
+6. `git push origin main --tags`
+7. 用户确认后创建 GitHub Release + 上传安装包
 
 **Commit message 规范**：
 
@@ -226,6 +258,8 @@ python run.py 直接跑             双击 EXE 运行
 4. **先 profile 再优化** — 性能问题先测出瓶颈（IO vs CPU），再针对优化，不盲目改
 5. **打包前冒烟** — 打包前跑完整冒烟测试：启动 → 核心功能 → 退出，确认正常再打包
 6. **快捷入口** — 生成 `启动.bat`，用户双击就能启动 dev 模式，不用敲命令
+7. **验收证据先行** — 说“完成/可发布”前必须有命令输出、日志路径、产物路径或干净机测试记录
+8. **文档同步** — 代码改动涉及版本、入口、依赖、发布或用户流程时，同步更新 README、AGENTS/CLAUDE、技术文档或 release checklist
 
 ---
 
@@ -248,6 +282,8 @@ python run.py 直接跑             双击 EXE 运行
 - 打包后闪退 → hiddenimports 缺失 → 路径不对 → 资源文件缺失
 - 编码错误 → Windows gbk ↔ UTF-8 冲突
 - 端口被占用 → 自动检测 + 备用端口
+- 干净机失败 → 开发机缓存依赖 → 检查内置浏览器/FFmpeg/WebView2/证书和用户数据目录
+- 安装目录权限错误 → 运行时数据写入 `{app}`/`Program Files` → 改写到 `%LOCALAPPDATA%`
 
 详见 `references/01-debug-checklist.md`
 
@@ -311,6 +347,7 @@ class ToolError(Exception):
 | `references/06-cn-error-handling.md` | 中文错误处理规范 | 阶段 1 写 API 时 |
 | `references/07-phase-diagnosis.md` | 半路接入诊断 | 项目做到一半接入时 |
 | `references/08-github-release.md` | GitHub 发布流程 | 阶段 5 发布时 |
+| `references/09-zero-prereq-release.md` | 零前置条件和干净机发布门禁 | 阶段 4.5 验收时 |
 
 ## 脚手架模板
 
