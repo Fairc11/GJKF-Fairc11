@@ -1,125 +1,104 @@
-# GJKF-Fairc11 — 工具开发工作流 Skill
+# GJKF-Fairc11 V2
 
-> **版本 1.2.0** | 基于实战经验沉淀的桌面工具开发 Skill
+面向桌面工具、Web 工具、平台数据工具、媒体工具和数据管理工具的跨平台开发工作流 Skill。
 
-GJKF-Fairc11 是一个工具开发 Skill，用于**规范化桌面工具、Web 工具、平台抓取工具和媒体处理工具的开发、打包与发布流程**。它把从零到一的开发过程拆解为清晰阶段，也支持项目开发到一半时「半路接入」诊断和发版前验收。
+V2 不再默认使用“Windows + EXE + Inno Setup”路线，而是先读取项目事实源，再根据真实需求选择 macOS、Windows、Web、CLI 或混合交付方案，并分别完成开发态、封包态、隐私和发布验收。
 
-## 解决的问题
+## V2 更新内容
 
-你有没有遇到过这样的情况？
-
-- 做个工具，做着做着项目结构就乱了
-- 改完 Bug → 打包 → 测试 → 又改 → 又打包，循环到崩溃
-- 每次都要敲一堆命令行才能启动
-- 英文报错看不懂，不知道出了什么问题
-- 开发机能跑，朋友电脑一安装就缺浏览器、FFmpeg 或权限报错
-- GitHub Release 发出去了，才发现敏感文件、日志或坏安装包也一起传上去了
-
-GJKF-Fairc11 就是解决这些问题的。
+| 方面 | V1 | V2 |
+|---|---|---|
+| 平台 | 主要面向 Windows EXE | macOS、Windows、Web 分别决策和验收 |
+| 技术路线 | 默认 FastAPI + pywebview | 先比较现有后端复用、分平台桌面壳和跨平台迁移 |
+| macOS | 缺少正式路线 | `.app`、DMG、arm64、Developer ID、公证、Gatekeeper |
+| Windows | EXE/Inno 单一路线 | PyInstaller onedir、Inno、WebView2、用户数据目录 |
+| Web | 简单技术树分支 | 本机 Web、局域网 Web、公网托管 Web分别评估 |
+| 隐私 | 主要检查 Cookie 文件 | Cookie、WKWebView/WebView2、运行时数据、用户产物四层隔离 |
+| 仓库发布 | 容易直接进入 GitHub Release | 本地提交、源码公开、私域二进制、公开 Release 分开授权 |
+| Git | 曾使用 `git add -A` | 默认精确暂存并审查缓存区 |
+| 验收 | 开发版和 EXE 验收 | 开发态、封包态、清运行时、干净环境四级门禁 |
+| 文档 | README 与开发记录容易混合 | README、DEVELOPMENT、AGENTS、handoff 分级管理 |
 
 ## 适用场景
 
-| 场景 | 说明 |
-|------|------|
-| 从零开始做工具 | 按阶段逐步推进，每个阶段有明确验收标准 |
-| 项目做到一半想规范 | 用「半路接入」诊断当前状态，对齐标准结构 |
-| 迭代修 Bug | 开发模式快速改、测试，全部验证通过再打包 |
-| 零前置条件打包 | 内置或检测浏览器、FFmpeg、WebView2 等运行时依赖 |
-| GitHub 发版 | 资产审计、tag、Release、安装包上传和用户确认门 |
+- 从零开发一个工具。
+- 接手做到一半、结构混乱的项目。
+- 修复开发态正常但封包态失败的问题。
+- 把 Mac 工具增加 Windows 或浏览器使用方式。
+- 打包 `.app`、DMG、EXE 或安装器。
+- 检查安装包是否包含账号、Cookie 或个人数据。
+- 做清运行时、干净机和首次启动验收。
+- 提交 Git、上传 GitHub、创建 PR 或发布 Release。
 
-## 快速开始
+## 使用方法
 
-### 安装
+在 Codex 中调用：
 
-```bash
-# 将 .skill 文件放到 Claude Code 的 skill 目录
-cp GJKF-Fairc.skill ~/.claude/skills/
-
-# 或者在 Claude Code 中直接加载
-# Claude Code 会自动识别
+```text
+$gjkf-fairc11
 ```
 
-### 使用
+示例：
 
-在 Claude Code 中说：
-
-```
-"我想做一个抖音图片下载工具"
-"帮我开发一个微博备份工具"
-"这个项目做到一半了，有点乱，帮我看看现在到哪了"
+```text
+使用 $gjkf-fairc11 检查这个工具现在处于什么阶段，并制定最小改动的 Mac 与 Windows 交付方案。
 ```
 
-Agent 会自动触发 GJKF-Fairc11 Skill，按标准化流程推进。
+```text
+使用 $gjkf-fairc11 审查安装包、Git 仓库和发布资产中是否包含我的登录信息或个人数据。
+```
+
+Skill 的磁盘目录仍保留 `GJKF-Fairc11`，界面显示为 `GJKF-Fairc11 V2`；调用标识使用符合新版规范的小写 `$gjkf-fairc11`。
 
 ## 核心流程
 
-### 7+1 阶段
+1. 读取项目事实源和 Git 状态。
+2. 选择桌面端、Web、CLI 或混合交付形态。
+3. 通过测试与最小改动完成开发。
+4. 隔离程序资源、登录数据、运行时数据和用户产物。
+5. 按 macOS、Windows 或 Web 路线构建。
+6. 验证真实封包产物和干净环境。
+7. 区分本地提交、源码公开、私域交付和公开 Release。
 
-```
-阶段 -1: 需求分析 → 明确功能 + 确定技术栈
-阶段 0:  项目脚手架 → 目录结构 + 配置 + 启动脚本
-阶段 1:  后端核心 → models → services → routers
-阶段 2:  前端/UI → 模板 + 交互 + 样式
-阶段 3:  桌面端 → pywebview（可选）
-阶段 4:  打包 → PyInstaller + Inno Setup + 运行时依赖
-阶段 4.5: 封包态验收 → 清运行时 + 干净机测试
-阶段 5:  GitHub 发布 → 资产审计 + tag + Release
-```
+完整工作流见 [SKILL.md](SKILL.md)。
 
-### 半路接入
+## 资料结构
 
-项目开发到一半也能接入：
-
-1. 扫描项目目录结构
-2. 检查各阶段产出物
-3. 输出诊断报告（当前阶段、完成度、缺失项）
-4. 推荐操作（继续 / 补漏 / 跳转）
-5. 用脚手架模板标准化对齐
-
-## 默认技术路线
-
-```
-后端: FastAPI + Uvicorn
-前端: Jinja2 + 原生 JS + CSS
-爬虫: Playwright（按需）
-桌面: pywebview（按需）
-打包: PyInstaller + Inno Setup（按需）
-```
-
-> 也支持根据项目需求推荐其他技术栈（Tauri、React、Node.js 等）。
-
-## Skill 结构
-
-```
+```text
 GJKF-Fairc11/
-├── SKILL.md                    # 主流程指令
-├── references/
-│   ├── 00-development-flow.md     # 阶段化开发流程
-│   ├── 01-debug-checklist.md      # 问题排查清单
-│   ├── 02-project-templates.md    # 项目结构模板
-│   ├── 03-packaging-guide.md      # 打包指南
-│   ├── 04-desktop-pattern.md      # 桌面端模式
-│   ├── 05-tech-stack-guide.md     # 技术栈决策树
-│   ├── 06-cn-error-handling.md    # 中文错误处理
-│   ├── 07-phase-diagnosis.md      # 半路接入诊断
-│   ├── 08-github-release.md       # GitHub 发布流程
-│   └── 09-zero-prereq-release.md  # 零前置条件发布门禁
-└── assets/scaffold/               # 脚手架模板
+├── SKILL.md
+├── agents/openai.yaml
+└── references/
+    ├── project-intake.md
+    ├── delivery-platform-decision.md
+    ├── development-debugging.md
+    ├── account-data-isolation.md
+    ├── packaging-macos.md
+    ├── packaging-windows.md
+    ├── web-delivery.md
+    ├── packaged-acceptance.md
+    └── repository-release-strategy.md
 ```
 
-## 设计理念
+旧版固定脚手架已经移除。V2 会先读取现有项目结构，再决定是否创建或调整脚手架，避免把 Windows 专用文件强加给 macOS、Web 或已有项目。
 
-- **基于实战**：从 Ptu 和微书薯等真实工具项目中提炼
-- **全中文**：所有用户可见的消息都是中文
-- **渐进式**：需要什么读什么 reference，不一次加载全部
-- **灵活**：默认 FastAPI 路线，但根据需求动态推荐
-- **可发布**：开发版、封包版、干净机和 GitHub Release 分开验收
+## 隐私原则
 
-## 技术栈要求
+- 不把 Cookie、token、WebView 站点数据、日志、缓存和用户产物加入 Skill、仓库或安装包。
+- 不用 `.gitignore` 代替 Git 历史、构建配置和真实产物审计。
+- 不把文件权限隔离描述成钥匙串加密。
+- README 通过检查不等于整个仓库已经适合公开。
+- 用户只授权本地提交时，不自动 push、建标签或创建 Release。
 
-- Python 3.10+（开发时）
-- 依赖按项目实际需求安装；面向普通用户发布时，优先内置或检测运行时依赖
+## 验证
 
-## License
+V2 已通过：
 
-MIT
+- Skill frontmatter 官方验证；
+- 主入口与全部 references 的相对链接检查；
+- macOS、发布分离、账号隔离和 Web 交付场景断言；
+- Git 差异与隐私扫描。
+
+## 许可证
+
+MIT，详见 [LICENSE](LICENSE)。

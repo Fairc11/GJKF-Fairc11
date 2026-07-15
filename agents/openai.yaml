@@ -1,0 +1,7 @@
+interface:
+  display_name: "GJKF-Fairc11 V2"
+  short_description: "跨平台工具开发、封包验收、账号隔离与安全发布工作流"
+  default_prompt: "使用 $gjkf-fairc11 诊断当前工具项目，并制定最小改动的跨平台交付与验收方案。"
+
+policy:
+  allow_implicit_invocation: true
